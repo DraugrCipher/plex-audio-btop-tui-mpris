@@ -3,6 +3,7 @@
 #include "input.h"
 #include "plex_client.h"
 #include "player_view.h"
+#include "mpris.h"
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -277,6 +278,13 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    // Start MPRIS D-Bus service (registers org.mpris.MediaPlayer2.plex-tui)
+    auto mpris = std::make_unique<PlexTUI::MprisServer>(*client, *player_view);
+    if (!mpris->start()) {
+        // Non-fatal — session bus may not be available (e.g. SSH session)
+        std::cerr << "[mpris] D-Bus service unavailable, MPRIS disabled\n";
+    }
+
     // Main loop
     const auto frame_duration = std::chrono::milliseconds(config.refresh_rate_ms);
     
@@ -374,6 +382,9 @@ int main(int argc, char* argv[]) {
     }
     
     // Cleanup - ensure all resources are freed in correct order
+    // Stop MPRIS before destroying player_view (it holds a reference)
+    mpris->stop();
+
     // Stop audio playback before destroying player_view
     if (player_view) {
         // PlayerView destructor will stop audio decoder

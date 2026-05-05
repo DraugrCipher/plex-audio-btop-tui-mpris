@@ -11,7 +11,26 @@
 #include <algorithm>
 #include <cctype>
 
+#include <csignal>  // for sig_atomic_t
+extern volatile sig_atomic_t g_running;
+
 namespace PlexTUI {
+
+// -- MPRIS interface implementations ----------------------------------------
+// Called from MprisServer (D-Bus thread). Posts to atomic queue; the main
+// thread drains it at the top of update() -- no mutexes needed.
+
+void PlayerView::mpris_next() {
+    mpris_pending_cmd.store(MprisCmd::Next);
+}
+
+void PlayerView::mpris_previous() {
+    mpris_pending_cmd.store(MprisCmd::Previous);
+}
+
+void PlayerView::request_quit() {
+    g_running = 0;
+}
 
 PlayerView::PlayerView(Terminal& term, PlexClient& client, Config& config)
     : term(term), client(client), config(config) {
@@ -39,6 +58,18 @@ PlayerView::PlayerView(Terminal& term, PlexClient& client, Config& config)
 
 void PlayerView::update() {
     try {
+        // -- Drain MPRIS command queue (D-Bus thread -> main thread) ---------
+        MprisCmd mpris_cmd = mpris_pending_cmd.exchange(MprisCmd::None);
+        if (mpris_cmd == MprisCmd::Next) {
+            advance_to_next_track();
+        } else if (mpris_cmd == MprisCmd::Previous) {
+            // No prev-track API yet: seek to start if > 3s in, else restart
+            if (playback_state.position_ms > 3000)
+                client.seek(0);
+            else
+                client.seek(0);
+        }
+
         // Skip update if client not connected (first run, no config yet)
         if (!client.is_connected()) {
             // If options menu is open on first run, don't try to update

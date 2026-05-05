@@ -6,6 +6,7 @@
 #include "plex_client.h"
 #include "audio_decoder.h"
 #include <chrono>
+#include <atomic>
 #include <memory>
 
 namespace PlexTUI {
@@ -49,7 +50,12 @@ public:
         options_menu_editing = false;
         options_menu_edit_buffer.clear();
     }
-    
+
+    // -- MPRIS (called from D-Bus thread, safe via atomic queue)
+    void mpris_next();
+    void mpris_previous();
+    void request_quit();
+
 private:
     Terminal& term;
     PlexClient& client;
@@ -184,6 +190,10 @@ private:
     // Helpers
     std::string format_time(uint32_t milliseconds);
     std::string format_volume(float volume);
+
+    // MPRIS command queue: D-Bus thread writes, main thread drains in update()
+    enum class MprisCmd { None, Next, Previous, Quit };
+    std::atomic<MprisCmd> mpris_pending_cmd{MprisCmd::None};
 };
 
 } // namespace PlexTUI
