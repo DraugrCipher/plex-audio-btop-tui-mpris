@@ -1,4 +1,6 @@
-# Plex Audio btop-style TUI
+### Forked to add MPRIS support ###
+
+# Plex Audio btop-style TUI with MPRIS
 
 A terminal user interface for Plex audio playback with real-time waveform visualization, inspired by btop.
 
@@ -14,7 +16,8 @@ A terminal user interface for Plex audio playback with real-time waveform visual
 - Keyboard and mouse controls
 - Configurable options menu
 - Optimized for large libraries (98k+ tracks)
-
+- MPRIS controls via dbus or playerctl
+  
 ## Screenshots
 
 ![Player View](assets/player-view.png)
